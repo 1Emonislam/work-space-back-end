@@ -230,6 +230,9 @@ module.exports.billingSearching = async (req, res, next) => {
 
 module.exports.billingDelete = async (req, res, next) => {
     try {
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
         const exist = await Billing.exists({ _id: req.params?.id?.trim() })
         if (!exist) {
             return res.status(400).json({ error: { billing: 'Billing not exists!' } })
@@ -239,7 +242,37 @@ module.exports.billingDelete = async (req, res, next) => {
             if (!removed) {
                 return res.status(400).json({ error: { billing: 'Billing Remove Failed!' } })
             }
-            return res.status(200).json({ message: 'Billing Remove Successfully!' })
+            const keyword = req.query.search ? {
+                action: status || 'pending',
+            } : { action: status || 'pending' };
+            const billingData = await Billing.aggregate([
+                { '$match': keyword },
+                { '$sort': { 'updatedAt': -1 } },
+                {
+                    $facet: {
+                        metadata: [
+                            {
+                                $group: {
+                                    _id: await billing_UID_GEN(24, req?.user?._id),
+                                    total: { $sum: 1 },
+                                    totalAmount: { $sum: "$paid_amount" }
+                                }
+                            },
+                            {
+                                $project: {
+                                    total: 1,
+                                    totalAmount: 1,
+                                    page: page,
+                                    limit: limit,
+                                    hasMore: { $gt: [{ $ceil: { $divide: ["$total", limit] } }, page] }
+                                }
+                            }
+                        ],
+                        data: [{ $skip: (page - 1) * limit }, { $limit: limit }]
+                    }
+                }
+            ])
+            return res.status(200).json({ message: 'Billing Update Successfully!', billing: billingData?.length && billingData[0] })
         }
     }
     catch (error) {
