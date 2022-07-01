@@ -27,9 +27,6 @@ module.exports.billingCreate = async (req, res, next) => {
           * @property {Number} limit - query limit
           * @property {String} search - query Search
         */
-        let { page = 1, limit = 10, status } = req.query;
-        page = parseInt(page)
-        limit = parseInt(limit)
         let { full_name, email, phone, paid_amount, billing_id, action } = req.body;
         billing_id = billing_id ? billing_id : await billing_UID_GEN(10, req?.user?._id);
         if (!(validateEmail(email))) {
@@ -39,11 +36,44 @@ module.exports.billingCreate = async (req, res, next) => {
         if (number?.isValid === false) {
             return res.status(400).json({ error: { phone: 'Invalid Number! Phone Number should be 11 digit' } })
         }
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
         const billingCreated = await Billing.create({
             full_name, email, phone, paid_amount, action, billing_id, author: req.user?._id,
         })
         if (billingCreated) {
-            return res.status(200).json({ message: 'Billing Added Successfully!', billing_id: billingCreated?._id })
+            const keyword = req.query.search ? {
+                action: status || 'pending',
+            } : { action: status || 'pending' };
+            const billingData = await Billing.aggregate([
+                { '$match': keyword },
+                { '$sort': { 'updatedAt': -1 } },
+                {
+                    $facet: {
+                        metadata: [
+                            {
+                                $group: {
+                                    _id: await billing_UID_GEN(24, req?.user?._id),
+                                    total: { $sum: 1 },
+                                    totalAmount: { $sum: "$paid_amount" }
+                                }
+                            },
+                            {
+                                $project: {
+                                    total: 1,
+                                    totalAmount: 1,
+                                    page: page,
+                                    limit: limit,
+                                    hasMore: { $gt: [{ $ceil: { $divide: ["$total", limit] } }, page] }
+                                }
+                            }
+                        ],
+                        data: [{ $skip: (page - 1) * limit }, { $limit: limit || 11 }]
+                    }
+                }
+            ])
+            return res.status(200).json({ message: 'Billing added Successfully!', billing: billingData?.length && billingData[0] })
         }
         return res.status(400).json({ message: 'Billing created failed!' })
     }
@@ -77,13 +107,13 @@ module.exports.billingUpdate = async (req, res, next) => {
           * @property {Number} limit - query limit
           * @property {String} search - query Search
         */
-        let { page = 1, limit = 10 } = req.query;
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
         const exist = await Billing.exists({ _id: req.params?.id?.trim() })
         if (!exist) {
             return res.status(400).json({ error: { billing: 'Billing Not Exists!' } })
         }
-        page = parseInt(page)
-        limit = parseInt(limit)
         let { full_name, email, phone, paid_amount, action } = req.body;
         paid_amount = Number(paid_amount)
         if (!(validateEmail(email))) {
@@ -100,7 +130,37 @@ module.exports.billingUpdate = async (req, res, next) => {
         if (!billingUpdate) {
             return res.status(400).json({ message: 'Billing Update Failed!', billing_id: billingUpdate?._id })
         } else {
-            return res.status(200).json({ message: 'Billing Successfully Updated!', billing_id: billingUpdate?._id })
+            const keyword = req.query.search ? {
+                action: status || 'pending',
+            } : { action: status || 'pending' };
+            const billingData = await Billing.aggregate([
+                { '$match': keyword },
+                { '$sort': { 'updatedAt': -1 } },
+                {
+                    $facet: {
+                        metadata: [
+                            {
+                                $group: {
+                                    _id: await billing_UID_GEN(24, req?.user?._id),
+                                    total: { $sum: 1 },
+                                    totalAmount: { $sum: "$paid_amount" }
+                                }
+                            },
+                            {
+                                $project: {
+                                    total: 1,
+                                    totalAmount: 1,
+                                    page: page,
+                                    limit: limit,
+                                    hasMore: { $gt: [{ $ceil: { $divide: ["$total", limit] } }, page] }
+                                }
+                            }
+                        ],
+                        data: [{ $skip: (page - 1) * limit }, { $limit: limit }]
+                    }
+                }
+            ])
+            return res.status(200).json({ message: 'Billing Update Successfully!', billing: billingData?.length && billingData[0] })
         }
     }
     catch (error) {
