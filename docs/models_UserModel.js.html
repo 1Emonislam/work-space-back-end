@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: models/UserModel.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: models/UserModel.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { mongoose, Schema } = require("mongoose");
+const bcrypt = require('bcryptjs');
+/**
+* User Model
+* @typedef {Object} req.body 
+* @property {String} firstName - User First Name
+* @property {String} lastName - User Last Name
+* @property {String} username - User username
+* @property {String} email - User Email
+* @property {Boolean} emailVerified - Email verified check true or false
+* @property {Boolean} phoneVerified - Phone verified check true or false
+* @property {Boolean} verifiedBadge - Badge verified check true or false
+* @property {String} password - User Password Be Strong
+* @property {String} phone - User Phone Number
+* @property {Object} location - User Location 
+* @property {String} role - User Role Badge Permission
+* @property {Object} geometry - User Location Tracking GEO
+* @property {String} gender - User Gender
+* @property {String} birthDate - User Birth Date
+* @property {String} nickName - User Nick Name
+* @property {Stirng} pic - User Pic
+* @property {Stirng} about - UserInfo Abouts
+* @property {Date} timestamps - Date of Time Capcher
+* @function 
+ */
+const geometrySchema = new mongoose.Schema({
+    type: {
+        type: String,
+        default: "Point"
+    },
+    coordinates: {
+        type: [Number],
+        index: "2dsphere"
+    }
+});
+const userSchema = new mongoose.Schema({
+    firstName: {
+        type: String,
+        required: [true, 'First Name is Required']
+    },
+    lastName: {
+        type: String
+    },
+    username: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        unique: true,
+    },
+    email: {
+        type: String,
+        required: [true, 'invalid email'],
+        lowercase: true,
+        trim: true
+    },
+    emailVerified: {
+        type: Boolean
+    },
+    phoneVerified: {
+        type: Boolean,
+    },
+    verifiedBadge: {
+        type: Boolean,
+    },
+    password: {
+        type: String,
+        required: [true, 'Must be at least 8 characters'],
+        min: 8,
+    },
+    phone: {
+        type: String,
+        trim: true,
+        required: [true, 'Please Provide Valid Phone Number']
+    },
+    location: {
+        latitude: {
+            type: Number,
+            default: 0,
+        },
+        longitude: {
+            type: Number,
+            default: 0
+        },
+        address: {
+            type: String,
+            default: 'N/A'
+        },
+        information: {
+            type: String,
+            default: 'N/A'
+        }
+    },
+    role: {
+        type: String,
+        enum: ['admin', 'user'],
+        default: 'user'
+    },
+    geometry: geometrySchema,
+    gender: {
+        type: String,
+        lowercase: true,
+        enum: ['male', 'female', 'others', ''],
+        default: ''
+    },
+    birthDate: {
+        type: String
+    },
+    nickName: {
+        type: String,
+        default: 'N/A'
+    },
+    pic: {
+        type: String,
+        default: "https://i.ibb.co/BGbPkX9/dummy-avatar-300x300-1.jpg",
+    },
+    about: {
+        type: String,
+        trim: true,
+        default: 'N/A'
+    },
+    action: {
+        type: String,
+        default: 'active'
+    },
+}, {
+    timestamps: true,
+});
+userSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+}
+userSchema.pre('save', async function (next) {
+    if (!this.isModified("password")) {
+        return next()
+    }
+    const salt = await bcrypt.genSalt(10)
+    this.password = await bcrypt.hash(this.password, salt)
+})
+const User = mongoose.model("User", userSchema)
+module.exports = User;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-billing_routes%2520user%2520authenticate.html">billing/routes user authenticate</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Billing">Billing</a></li><li><a href="global.html#Billingcreatedbackendapplications">Billing created back end applications</a></li><li><a href="global.html#billing_UID_GEN">billing_UID_GEN</a></li><li><a href="global.html#billingSchema">billingSchema</a></li><li><a href="global.html#checkPassword">checkPassword</a></li><li><a href="global.html#connectedDbdatabaseconnect">connectedDb database connect</a></li><li><a href="global.html#express">express</a></li><li><a href="global.html#generateUniqueAccountName">generateUniqueAccountName</a></li><li><a href="global.html#genToken">genToken</a></li><li><a href="global.html#protect">protect</a></li><li><a href="global.html#User">User</a></li><li><a href="global.html#userLogin">userLogin</a></li><li><a href="global.html#userRegister">userRegister</a></li><li><a href="global.html#validateEmail">validateEmail</a></li><li><a href="global.html#%257Bfunction%257Dbilling_UID_GEN-RandomUIDgen">{function} billing_UID_GEN - Random UID gen</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Fri Jul 01 2022 13:37:38 GMT+0600 (Bangladesh Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

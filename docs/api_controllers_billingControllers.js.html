@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: api/controllers/billingControllers.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: api/controllers/billingControllers.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const Billing = require("../../models/BillingModel");
+const User = require("../../models/UserModel");
+const { billing_UID_GEN, validateEmail, validation_number } = require("../../utils/func");
+
+/**
+ * Billing Data Insert
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @async
+ * @function Billing
+ * @return {Promise&lt;object>} The data from communicate server.
+ */
+module.exports.billingCreate = async (req, res, next) => {
+    try {
+        /**
+          * Billing Create Property
+          * @typedef {Object} req.body 
+          * @property {full_name} full_name - Billing Full Name
+          * @property {email} email - Billing Email
+          * @property {phone} phone - Billing Phone
+          * @property {paid_amount} paid_amount - Billing Paid Amount
+          * @property {action} action - Billing Action
+          * @property {String} billing_id - Billing ID Gen UID
+          * @property {*} author - Billing Owner Author
+          * @property {Number} page - query page
+          * @property {Number} limit - query limit
+          * @property {String} search - query Search
+        */
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
+        let { full_name, email, phone, paid_amount, billing_id, action } = req.body;
+        billing_id = billing_id ? billing_id : await billing_UID_GEN(10, req?.user?._id);
+        if (!(validateEmail(email))) {
+            return res.status(400).json({ error: { email: 'Email Invalid! Please provide a valid Email!' } })
+        }
+        let number = phone &amp;&amp; await validation_number(phone);
+        if (number?.isValid === false) {
+            return res.status(400).json({ error: { phone: 'Invalid Number! Phone Number should be 11 digit' } })
+        }
+        const billingCreated = await Billing.create({
+            full_name, email, phone, paid_amount, action, billing_id, author: req.user?._id,
+        })
+        if (billingCreated) {
+            return res.status(200).json({ message: 'Billing Added Successfully!', billing_id: billingCreated?._id })
+        }
+        return res.status(400).json({ message: 'Billing created failed!' })
+    }
+    catch (error) {
+        next(error)
+    }
+}
+/**
+ * Billing Data Update
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @async
+ * @function Billing
+ * @return {Promise&lt;object>} The data from communicate server.
+ */
+
+module.exports.billingUpdate = async (req, res, next) => {
+    try {
+        /**
+          * Billing Create Property
+          * @typedef {Object} req.body 
+          * @property {full_name} full_name - Billing Full Name
+          * @property {email} email - Billing Email
+          * @property {phone} phone - Billing Phone
+          * @property {paid_amount} paid_amount - Billing Paid Amount
+          * @property {action} action - Billing Action
+          * @property {String} billing_id - Billing ID Gen UID
+          * @property {*} author - Billing Owner Author
+          * @property {Number} page - query page
+          * @property {Number} limit - query limit
+          * @property {String} search - query Search
+        */
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
+        let { full_name, email, phone, paid_amount, action } = req.body;
+        paid_amount = Number(paid_amount)
+        if (!(validateEmail(email))) {
+            return res.status(400).json({ error: { email: 'Email Invalid! Please provide a valid Email!' } })
+        }
+        let number = phone &amp;&amp; await validation_number(phone);
+        if (number?.isValid === false) {
+            return res.status(400).json({ error: { phone: 'Invalid Number! Phone Number should be 11 digit' } })
+        }
+        const billing_id = await billing_UID_GEN(10, req?.user?._id);
+        const billingUpdate = await Billing.findOneAndUpdate({ _id: req.params?.id?.trim() }, {
+            full_name, email, phone, paid_amount, action, billing_id, author: req.user?._id,
+        }, { new: true })
+        const keyword = req.query.search ? {
+            $or: [
+                { full_name: { $regex: req.query.search, $options: "i" } },
+                { email: { $regex: req.query.search, $options: "i" } },
+                { phone: { $regex: req.query.search, $options: "i" } },
+                { billing_id: { $regex: req.query.search, $options: "i" } },
+                { action: { $regex: status || req.query.search, $options: "i" } },
+            ],
+        } : { action: status || 'pending' };
+        const billingData = await Billing.aggregate([
+            { '$match': keyword },
+            { '$sort': { 'updatedAt': -1 } },
+            {
+                $facet: {
+                    metadata: [
+                        {
+                            $group: {
+                                _id: await billing_UID_GEN(24, req?.user?._id),
+                                total: { $sum: 1 },
+                                totalAmount: { $sum: "$paid_amount" }
+                            }
+                        },
+                        {
+                            $project: {
+                                total: 1,
+                                totalAmount: 1,
+                                page: page,
+                                limit: limit,
+                                hasMore: { $gt: [{ $ceil: { $divide: ["$total", limit] } }, page] }
+                            }
+                        }
+                    ],
+                    data: [{ $skip: (page - 1) * limit }, { $limit: limit }]
+                }
+            }
+        ])
+        return res.status(200).json({ message: 'Billing Update Successfully!', billing: billingData?.length &amp;&amp; billingData[0] })
+    }
+    catch (error) {
+        next(error)
+    }
+}
+module.exports.billingSearching = async (req, res, next) => {
+    try {
+        /**
+          * Billing Create Property
+          * @typedef {Object} req.body 
+          * @property {full_name} full_name - Billing Full Name field Searching
+          * @property {email} email - Billing Email field Searching
+          * @property {phone} phone - Billing Phone field Searching
+          * @property {action} action - Billing Action field Searching
+          * @property {String} billing_id - Billing ID Gen UID field Searching
+          * @property {*} author - Billing Owner Author field Searching
+          * @property {Number} page - query page field Searching
+          * @property {Number} limit - query limit field Searching
+          * @property {String} search - query Search field Searching
+        */
+        let { page = 1, limit = 10, status } = req.query;
+        page = parseInt(page)
+        limit = parseInt(limit)
+        const keyword = req.query.search ? {
+            $or: [
+                { full_name: { $regex: req.query.search, $options: "i" } },
+                { email: { $regex: req.query.search, $options: "i" } },
+                { phone: { $regex: req.query.search, $options: "i" } },
+                { billing_id: { $regex: req.query.search, $options: "i" } },
+                { action: { $regex: status || req.query.search, $options: "i" } },
+            ],
+        } : { action: status || 'pending' };
+        const billingData = await Billing.aggregate([
+            { '$match': keyword },
+            { '$sort': { 'updatedAt': -1 } },
+            {
+                $facet: {
+                    metadata: [
+                        {
+                            $group: {
+                                _id: await billing_UID_GEN(24, req?.user?._id),
+                                total: { $sum: 1 },
+                                totalAmount: { $sum: "$paid_amount" }
+                            }
+                        },
+                        {
+                            $project: {
+                                total: 1,
+                                totalAmount: 1,
+                                page: page,
+                                limit: limit,
+                                hasMore: { $gt: [{ $ceil: { $divide: ["$total", limit] } }, page] }
+                            }
+                        }
+                    ],
+                    data: [{ $skip: (page - 1) * limit }, { $limit: limit }]
+                }
+            }
+        ])
+        return res.status(200).json({ message: 'Billing Getting Successfully!', billing: billingData?.length &amp;&amp; billingData[0] })
+    }
+    catch (error) {
+        next(error)
+    }
+}
+
+module.exports.billingDelete = async (req, res, next) => {
+    try {
+        const exist = await Billing.exists({ _id: req.params?.id?.trim() })
+        if (!exist) {
+            return res.status(400).json({ error: { billing: 'Billing not exists!' } })
+        }
+        if (exist) {
+            const removed = await Billing.findOneAndRemove({ _id: req.params?.id?.trim() })
+            if (!removed) {
+                return res.status(400).json({ error: { billing: 'Billing Remove Failed!' } })
+            }
+            return res.status(200).json({ message: 'Billing Remove Successfully!', })
+
+        }
+    }
+    catch (error) {
+        next(error)
+    }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-billing_routes%2520user%2520authenticate.html">billing/routes user authenticate</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Billing">Billing</a></li><li><a href="global.html#Billingcreatedbackendapplications">Billing created back end applications</a></li><li><a href="global.html#billing_UID_GEN">billing_UID_GEN</a></li><li><a href="global.html#billingSchema">billingSchema</a></li><li><a href="global.html#checkPassword">checkPassword</a></li><li><a href="global.html#connectedDbdatabaseconnect">connectedDb database connect</a></li><li><a href="global.html#express">express</a></li><li><a href="global.html#generateUniqueAccountName">generateUniqueAccountName</a></li><li><a href="global.html#genToken">genToken</a></li><li><a href="global.html#protect">protect</a></li><li><a href="global.html#User">User</a></li><li><a href="global.html#userLogin">userLogin</a></li><li><a href="global.html#userRegister">userRegister</a></li><li><a href="global.html#validateEmail">validateEmail</a></li><li><a href="global.html#%257Bfunction%257Dbilling_UID_GEN-RandomUIDgen">{function} billing_UID_GEN - Random UID gen</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Fri Jul 01 2022 13:37:38 GMT+0600 (Bangladesh Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

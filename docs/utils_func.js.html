@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: utils/func.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: utils/func.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const User = require("../models/UserModel");
+
+/**
+ * @function {Funtion} translteBanglaToEngNum - English To Bangla Converter
+ * @function {Funtion} validation_number - Check Phone Number Valid or invalid true/false
+ * @function {function} billing_UID_GEN - Random UID gen
+ */
+const translteBanglaToEngNum = async (num_str) => {
+    var bengali = { "০": 0, "১": 1, "২": 2, "৩": 3, "৪": 4, "৫": 5, "৬": 6, "৭": 7, "৮": 8, "৯": 9 };
+    var changed_nun = '';
+    await num_str?.toString()?.split('').forEach(item => {
+        if (isNaN(item)) { changed_nun += bengali[item]; } else { changed_nun += item; }
+    });
+    return changed_nun;
+}
+const validation_number = async (value) => {
+    /**
+  * valid number method return 3 with actual input
+  * @param  {Boolean} valid_number
+  * @param  {true} {return{isValid
+  * @param  {value};}else{return{isValid:false} phone
+  * @param  {value};}} phone
+  * @returns {Object} return false when not valid
+  * When value not number then try to convert bangla to english number
+  */
+    if (isNaN(value)) {
+        /**
+         * @param  {function} value Bangla To English Converter
+         */
+        value = await translteBanglaToEngNum(value);
+    }
+    /**
+     * Regular expression to validate number
+     * @param  {String} /(^([+]{1}[8]{2}|0088)?(01){1}[3-9]{1}\d{8})$/
+     */
+    let re = /(^([+]{1}[8]{2}|0088)?(01){1}[3-9]{1}\d{8})$/;
+    let valid_number = re.test(value);
+
+    if (valid_number) {
+        return {
+            isValid: true,
+            phone: value
+        };
+    } else {
+        return {
+            isValid: false,
+            phone: value
+        };
+    }
+}
+/**
+ * @param  {String} length
+ * @param  {String} id
+ * @param  {function} billing_UID_GEN Gen Random UID
+ */
+const billing_UID_GEN = async (length, id) => {
+    /**
+     * @param  {String} s UID Gen Unique
+     */
+    for (var s = ''; s.length &lt; length; s += `${id}abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01 ${Date.now()}`.charAt(Math.random() * 62 | 0));
+    return s;
+}
+
+/**
+    * @param  {function} generateUniqueAccountName username unique gen
+ */
+const generateUniqueAccountName = async (proposedName) => {
+    return User.findOne({ username: proposedName })
+        .then(function (username) {
+            if (username) {
+                // console.log('no can do try again: ' + proposedName);
+                proposedName += Math.floor((Math.random() * 100) + 1);
+                return generateUniqueAccountName(proposedName); // &lt;== return statement here
+            }
+            // console.log('proposed name is unique' + proposedName);
+            return proposedName;
+        })
+        .catch(function (err) {
+            next(err)
+        });
+}
+
+/**
+ * Email Checking.
+ * @param  {String} elementValue value of Email
+ * @function 
+ * @returns {String} emailPattern Email Return value true/false
+ */
+const validateEmail = (elementValue) => {
+    const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+    return emailPattern.test(elementValue);
+}
+/**
+ * @param  {String} password
+ * @function 
+ * @returns {String} re Password Return String
+ */
+const checkPassword = (password) => {
+    var re = /^(?=.*\d)(?=.*[!@#$%^&amp;*])(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+    return re.test(password);
+}
+module.exports = { validation_number, billing_UID_GEN, generateUniqueAccountName, validateEmail, checkPassword }</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-billing_routes%2520user%2520authenticate.html">billing/routes user authenticate</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Billing">Billing</a></li><li><a href="global.html#Billingcreatedbackendapplications">Billing created back end applications</a></li><li><a href="global.html#billing_UID_GEN">billing_UID_GEN</a></li><li><a href="global.html#billingSchema">billingSchema</a></li><li><a href="global.html#checkPassword">checkPassword</a></li><li><a href="global.html#connectedDbdatabaseconnect">connectedDb database connect</a></li><li><a href="global.html#express">express</a></li><li><a href="global.html#generateUniqueAccountName">generateUniqueAccountName</a></li><li><a href="global.html#genToken">genToken</a></li><li><a href="global.html#protect">protect</a></li><li><a href="global.html#User">User</a></li><li><a href="global.html#userLogin">userLogin</a></li><li><a href="global.html#userRegister">userRegister</a></li><li><a href="global.html#validateEmail">validateEmail</a></li><li><a href="global.html#%257Bfunction%257Dbilling_UID_GEN-RandomUIDgen">{function} billing_UID_GEN - Random UID gen</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.10</a> on Fri Jul 01 2022 13:37:38 GMT+0600 (Bangladesh Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
