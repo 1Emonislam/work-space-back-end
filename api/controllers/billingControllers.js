@@ -69,7 +69,7 @@ module.exports.billingCreate = async (req, res, next) => {
                                 }
                             }
                         ],
-                        data: [{ $skip: (page - 1) * limit }, { $limit: limit || 11 }]
+                        data: [{ $skip: (page - 1) * limit }, { $limit: 11 }]
                     }
                 }
             ])
